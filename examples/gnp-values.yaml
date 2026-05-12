@@ -1,0 +1,18 @@
+# GNP project values — reproduces current gnp-infra configuration
+nodeRole: "eks-role-node-gnp"
+clusterName: "eks-cluster-gnp"
+securityGroupTag: "eks-sg-node"
+
+nodePool:
+  capacityTypes:
+    - spot
+    - on-demand
+  limits:
+    cpu: "32"
+    memory: "128Gi"
+  consolidateAfter: "60s"
+
+blockDevice:
+  volumeSize: "20Gi"
+  volumeType: gp3
+  encrypted: true

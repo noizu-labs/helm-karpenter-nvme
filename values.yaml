@@ -1,0 +1,47 @@
+# karpenter-nvme — NVMe instance store nodes with LVM
+#
+# Creates a Karpenter EC2NodeClass and NodePool for provisioning
+# EC2 instances with NVMe instance store drives. The userData script
+# installs LVM2 and creates a volume group from all discovered NVMe devices.
+#
+# Prerequisites:
+#   - Karpenter controller deployed (v1.0+)
+#   - Karpenter CRDs installed
+#   - IAM role for nodes with required policies
+#   - Subnets tagged with karpenter.sh/discovery: <clusterName>
+#
+# Deploy:
+#   helm upgrade --install karpenter-nvme . --namespace karpenter --wait
+
+# Required — no defaults (cluster-specific)
+nodeRole: ""
+clusterName: ""
+securityGroupTag: ""
+
+# LVM volume group name (must match openebs-lvm storageClass.volumeGroup)
+volumeGroup: "tank"
+
+# AMI selection
+amiAlias: "al2023@latest"
+
+# EC2NodeClass block device (root volume)
+blockDevice:
+  volumeSize: "20Gi"
+  volumeType: gp3
+  encrypted: true
+
+# NodePool settings
+nodePool:
+  capacityTypes:
+    - spot
+    - on-demand
+  architectures:
+    - amd64
+  minNvmeGiB: "100"
+  limits:
+    cpu: "32"
+    memory: "128Gi"
+  consolidateAfter: "60s"
+  weight: 20
+  disruptionBudget:
+    nodes: "1"

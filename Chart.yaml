@@ -1,0 +1,10 @@
+apiVersion: v2
+name: karpenter-nvme
+description: >-
+  Karpenter EC2NodeClass and NodePool for NVMe instance store nodes
+  with automatic LVM volume group provisioning. Provisions spot/on-demand
+  instances with local NVMe drives and bootstraps LVM for use with
+  OpenEBS LVM LocalPV CSI driver.
+type: application
+version: 0.1.0
+appVersion: "1.0"

@@ -1,0 +1,13 @@
+nodeRole: "test-node-role"
+clusterName: "test-cluster"
+securityGroupTag: "test-sg"
+volumeGroup: "test-vg"
+
+nodePool:
+  capacityTypes:
+    - spot
+  architectures:
+    - amd64
+  limits:
+    cpu: "16"
+    memory: "64Gi"

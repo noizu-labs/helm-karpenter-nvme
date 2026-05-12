@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["nodeRole", "clusterName", "securityGroupTag"],
+  "properties": {
+    "nodeRole": { "type": "string", "minLength": 1 },
+    "clusterName": { "type": "string", "minLength": 1 },
+    "securityGroupTag": { "type": "string", "minLength": 1 },
+    "volumeGroup": { "type": "string", "minLength": 1 },
+    "amiAlias": { "type": "string", "minLength": 1 },
+    "nodePool": {
+      "type": "object",
+      "properties": {
+        "capacityTypes": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["spot", "on-demand"] },
+          "minItems": 1
+        },
+        "architectures": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "minNvmeGiB": { "type": "string" },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "cpu": { "type": "string" },
+            "memory": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

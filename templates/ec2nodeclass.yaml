@@ -1,0 +1,85 @@
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: nvme
+  labels:
+    {{- include "karpenter-nvme.labels" . | nindent 4 }}
+spec:
+  role: {{ .Values.nodeRole }}
+
+  amiSelectorTerms:
+    - alias: {{ .Values.amiAlias }}
+
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: {{ .Values.clusterName }}
+
+  securityGroupSelectorTerms:
+    - tags:
+        Name: {{ .Values.securityGroupTag }}
+
+  userData: |
+    MIME-Version: 1.0
+    Content-Type: multipart/mixed; boundary="BOUNDARY"
+
+    --BOUNDARY
+    Content-Type: application/node.eks.aws
+
+    ---
+    apiVersion: node.eks.aws/v1alpha1
+    kind: NodeConfig
+    spec:
+      kubelet: {}
+
+    --BOUNDARY
+    Content-Type: text/x-shellscript; charset="us-ascii"
+
+    #!/bin/bash
+    set -euo pipefail
+
+    # Install LVM2 (ships with AL2023 repos, no DKMS risk)
+    dnf install -y -q lvm2
+
+    # Load dm_thin_pool kernel module — required for LVM thin provisioning.
+    # AL2023 EKS AMI has the module but doesn't load it by default.
+    modprobe dm_thin_pool
+    echo "dm_thin_pool" > /etc/modules-load.d/lvm-thin.conf
+
+    # Discover ALL NVMe instance store devices via sysfs model string
+    NVME_DEVS=""
+    for sysdev in /sys/block/nvme*n1; do
+      model=$(cat "$sysdev/device/model" 2>/dev/null || echo "")
+      if echo "$model" | grep -q "Instance Storage"; then
+        NVME_DEVS="$NVME_DEVS /dev/$(basename $sysdev)"
+      fi
+    done
+
+    if [ -z "$NVME_DEVS" ]; then
+      echo "No NVMe instance store devices found"
+      exit 0
+    fi
+
+    echo "Found NVMe instance store devices: $NVME_DEVS"
+
+    # Create LVM physical volumes from all NVMe devices
+    for dev in $NVME_DEVS; do
+      pvcreate -f "$dev"
+    done
+
+    # Create volume group spanning all NVMe devices.
+    # Do NOT create a thin pool here — OpenEBS LVM LocalPV handles thin pool
+    # creation dynamically when PVCs are provisioned with thinProvision: "yes".
+    # Pre-creating a thin pool confuses OpenEBS capacity reporting.
+    vgcreate {{ .Values.volumeGroup }} $NVME_DEVS
+
+    echo "LVM VG '{{ .Values.volumeGroup }}' created from $NVME_DEVS ($(vgs {{ .Values.volumeGroup }} --noheadings -o vg_size --nosuffix --units g | tr -d ' '))"
+
+    --BOUNDARY--
+
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: {{ .Values.blockDevice.volumeSize | quote }}
+        volumeType: {{ .Values.blockDevice.volumeType }}
+        encrypted: {{ .Values.blockDevice.encrypted }}
+        deleteOnTermination: true
